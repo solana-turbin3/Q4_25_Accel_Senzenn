@@ -1,5 +1,14 @@
 # Whitelist Transfer Hook
 
+# Tasks->>>>>>> 
+
+# - [ ]  Make a whitelist a pda  per user  instead of Vec  (Hint: careful with the extra  account meta list) 
+# - [ ]  Initialize  the mint  with the trnasfer  hook in the program and not in the client side  
+
+
+
+
+
 This example demonstrates how to implement a transfer hook using the SPL Token 2022 Transfer Hook interface to enforce whitelist restrictions on token transfers.
 
 In this example, only whitelisted addresses will be able to transfer tokens that have this transfer hook enabled, providing fine-grained access control over token movements.

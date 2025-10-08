@@ -1,83 +1,56 @@
-use anchor_lang::{
-    prelude::*, 
-    system_program
-};
+use anchor_lang::prelude::*;
 
-use crate::state::whitelist::Whitelist;
+use crate::state::UserWhitelist;
 
 #[derive(Accounts)]
+#[instruction(user: Pubkey)]
 pub struct WhitelistOperations<'info> {
-    #[account(
-        mut,
-        //address = 
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
+
+    /// The user whose whitelist status we're managing
+    /// CHECK: This is the user we want to add/remove from whitelist
+    pub user: UncheckedAccount<'info>,
+
+    /// CHECK: User's whitelist PDA - derived as [b"whitelist", user.key()]
     #[account(
         mut,
-        seeds = [b"whitelist"],
+        seeds = [b"whitelist", user.key().as_ref()],
         bump,
     )]
-    pub whitelist: Account<'info, Whitelist>,
+    pub user_whitelist: Account<'info, UserWhitelist>,
+
     pub system_program: Program<'info, System>,
 }
 
 impl<'info> WhitelistOperations<'info> {
-    pub fn add_to_whitelist(&mut self, address: Pubkey) -> Result<()> {
-        if !self.whitelist.address.contains(&address) {
-            self.realloc_whitelist(true)?;
-            self.whitelist.address.push(address);
+    pub fn add_to_whitelist(&mut self) -> Result<()> {
+        // Check if user is already whitelisted (PDA already exists)
+        let account_info = self.user_whitelist.to_account_info();
+        if !account_info.data_is_empty() {
+            return Ok(()); // Already whitelisted
         }
+
+        // Initialize the user's whitelist PDA
+        let bump = self.user_whitelist.bump;
+        let user_whitelist = &mut self.user_whitelist;
+        user_whitelist.user = self.user.key();
+        user_whitelist.bump = bump;
+
         Ok(())
     }
 
-    pub fn remove_from_whitelist(&mut self, address: Pubkey) -> Result<()> {
-        if let Some(pos) = self.whitelist.address.iter().position(|&x| x == address) {
-            self.whitelist.address.remove(pos);
-            self.realloc_whitelist(false)?;
-        }
-        Ok(())
-    }
+    pub fn remove_from_whitelist(&mut self) -> Result<()> {
+        // Close the user's whitelist PDA and refund rent to admin
+        let user_whitelist_account = self.user_whitelist.to_account_info();
+        let admin_account = self.admin.to_account_info();
 
-    pub fn realloc_whitelist(&self, is_adding: bool) -> Result<()> {
-        // Get the account info for the whitelist
-        let account_info = self.whitelist.to_account_info();
-
-        if is_adding {  // Adding to whitelist
-            let new_account_size = account_info.data_len() + std::mem::size_of::<Pubkey>();
-            // Calculate rent required for the new account size
-            let lamports_required = (Rent::get()?).minimum_balance(new_account_size);
-            // Determine additional rent required
-            let rent_diff = lamports_required - account_info.lamports();
-
-            // Perform transfer of additional rent
-            let cpi_program = self.system_program.to_account_info();
-            let cpi_accounts = system_program::Transfer{
-                from: self.admin.to_account_info(), 
-                to: account_info.clone(),
-            };
-            let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-            system_program::transfer(cpi_context,rent_diff)?;
-
-            // Reallocate the account
-            account_info.resize(new_account_size)?;
-            msg!("Account Size Updated: {}", account_info.data_len());
-
-        } else {        // Removing from whitelist
-            let new_account_size = account_info.data_len() - std::mem::size_of::<Pubkey>();
-            // Calculate rent required for the new account size
-            let lamports_required = (Rent::get()?).minimum_balance(new_account_size);
-            // Determine additional rent to be refunded
-            let rent_diff = account_info.lamports() - lamports_required;
-
-            // Reallocate the account
-            account_info.resize(new_account_size)?;
-            msg!("Account Size Downgraded: {}", account_info.data_len());
-
-            // Perform transfer to refund additional rent
-            **self.admin.to_account_info().try_borrow_mut_lamports()? += rent_diff;
-            **self.whitelist.to_account_info().try_borrow_mut_lamports()? -= rent_diff;
-        }
+        // Calculate refund amount (rent for the account)
+        let rent_balance = user_whitelist_account.lamports();
+        **admin_account.try_borrow_mut_lamports()? += rent_balance;
+        **user_whitelist_account.try_borrow_mut_lamports()? -= rent_balance;
 
         Ok(())
     }
+
 }

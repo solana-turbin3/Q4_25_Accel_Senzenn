@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::Mint;
 use spl_tlv_account_resolution::{
-    account::ExtraAccountMeta, 
-    seeds::Seed, 
+    account::ExtraAccountMeta,
+    seeds::Seed,
     state::ExtraAccountMetaList
 };
 
@@ -35,9 +35,12 @@ impl<'info> InitializeExtraAccountMetaList<'info> {
                         Seed::Literal {
                             bytes: b"whitelist".to_vec(),
                         },
+                        Seed::AccountKey {
+                            index: 3, // owner is 4th account in ctx: 0=source_token, 1=mint, 2=destination_token, 3=owner
+                        },
                     ],
                     false, // is_signer
-                    false // is_writable
+                    false  // is_writable
                 )?
             ]
         )

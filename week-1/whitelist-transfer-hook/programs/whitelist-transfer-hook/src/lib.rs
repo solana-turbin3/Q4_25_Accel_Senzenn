@@ -11,7 +11,7 @@ use instructions::*;
 use spl_discriminator::SplDiscriminate;
 use spl_transfer_hook_interface::{
     instruction::{
-        ExecuteInstruction, 
+        ExecuteInstruction,
         InitializeExtraAccountMetaListInstruction
     },
 };
@@ -27,12 +27,12 @@ pub mod whitelist_transfer_hook {
         ctx.accounts.initialize_whitelist(ctx.bumps)
     }
 
-    pub fn add_to_whitelist(ctx: Context<WhitelistOperations>, user: Pubkey) -> Result<()> {
-        ctx.accounts.add_to_whitelist(user)
+    pub fn add_to_whitelist(ctx: Context<WhitelistOperations>, _user: Pubkey) -> Result<()> {
+        ctx.accounts.add_to_whitelist()
     }
 
-    pub fn remove_from_whitelist(ctx: Context<WhitelistOperations>, user: Pubkey) -> Result<()> {
-        ctx.accounts.remove_from_whitelist(user)
+    pub fn remove_from_whitelist(ctx: Context<WhitelistOperations>, _user: Pubkey) -> Result<()> {
+        ctx.accounts.remove_from_whitelist()
     }
 
     #[instruction(discriminator = InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE)]
